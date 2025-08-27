@@ -19,8 +19,6 @@ import androidx.camera.core.Preview as CameraXPreview
 import androidx.camera.lifecycle.ProcessCameraProvider
 import androidx.camera.view.PreviewView
 import androidx.compose.animation.AnimatedContent
-import androidx.compose.animation.animateColorAsState
-import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -118,7 +116,6 @@ class SummarizerViewModel(private val dao: SummaryDao) : ViewModel() {
                 "Summarize the following notes into clear, concise bullet points. " +
                 "The desired summary style is: $lengthDescription.\n\n" +
                 "Original Text:\n\"\"\"\n$originalText\n\"\"\""
-
         viewModelScope.launch {
             try {
                 val response = generativeModel.generateContent(prompt)
@@ -280,12 +277,13 @@ fun SummarizerScreen(hasPermission: Boolean, viewModel: SummarizerViewModel, nav
                             value = summaryLength,
                             onValueChange = { summaryLength = it },
                             valueRange = 50f..350f,
-                            steps = 2
+                            steps = 1 // FIXED: From 2 to 1 for three levels
                         )
                         Text(
+                            // FIXED: Logic now correctly maps to the three levels
                             when (summaryLength.roundToInt()) {
-                                in 50..125 -> "Short"
-                                in 126..275 -> "Medium"
+                                in 50..199 -> "Short"
+                                in 200..299 -> "Medium"
                                 else -> "Detailed"
                             },
                             style = MaterialTheme.typography.bodySmall
@@ -376,7 +374,6 @@ fun HistoryScreen(viewModel: SummarizerViewModel, navController: NavController) 
                 leadingIcon = { Icon(Icons.Default.Search, contentDescription = null) },
                 modifier = Modifier.fillMaxWidth().padding(16.dp)
             )
-
             when {
                 history == null -> {
                     Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
@@ -470,55 +467,42 @@ fun DetailScreen(summaryId: Int, viewModel: SummarizerViewModel, navController: 
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun HistoryItem(summary: Summary, onClick: () -> Unit, onDelete: () -> Unit) {
-    val dismissState = rememberSwipeToDismissBoxState(
-        confirmValueChange = { dismissValue ->
-            if (dismissValue == SwipeToDismissBoxValue.EndToStart) {
-                onDelete()
-                true
-            } else {
-                false
-            }
-        },
-        positionalThreshold = { it * .25f }
-    )
-
-    SwipeToDismissBox(
-        state = dismissState,
-        enableDismissFromStartToEnd = false,
-        enableDismissFromEndToStart = true,
-        backgroundContent = {
-            val color by animateColorAsState(
-                targetValue = if (dismissState.targetValue == SwipeToDismissBoxValue.EndToStart) MaterialTheme.colorScheme.errorContainer else Color.Transparent,
-                label = "SwipeToDeleteBackground"
-            )
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .background(color)
-                    .padding(horizontal = 20.dp),
-                contentAlignment = Alignment.CenterEnd
-            ) {
-                Icon(Icons.Default.Delete, contentDescription = "Delete", tint = MaterialTheme.colorScheme.onErrorContainer)
-            }
-        }
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onClick), // Keep the card clickable to view details
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
     ) {
-        Card(
+        Row(
             modifier = Modifier
-                .fillMaxWidth()
-                .clickable(onClick = onClick),
-            elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+                .padding(start = 16.dp, top = 16.dp, bottom = 16.dp, end = 8.dp)
+                .fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically
         ) {
-            Column(modifier = Modifier.padding(16.dp)) {
+            // Column for the text content
+            Column(modifier = Modifier.weight(1f)) {
                 Text(
                     text = SimpleDateFormat("MMM dd, yyyy - hh:mm a", Locale.getDefault()).format(Date(summary.timestamp)),
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
                 Spacer(modifier = Modifier.height(8.dp))
-                Text(text = summary.summarizedText, style = MaterialTheme.typography.bodyMedium, maxLines = 4, overflow = TextOverflow.Ellipsis)
+                Text(
+                    text = summary.summarizedText,
+                    style = MaterialTheme.typography.bodyMedium,
+                    maxLines = 4,
+                    overflow = TextOverflow.Ellipsis
+                )
+            }
+            // Delete button
+            IconButton(onClick = onDelete) {
+                Icon(
+                    Icons.Default.Delete,
+                    contentDescription = "Delete Summary",
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant
+                )
             }
         }
     }
