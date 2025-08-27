@@ -1,8 +1,25 @@
+import java.util.Properties
+import java.io.FileInputStream
+
+// ... other plugins
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.jetbrains.kotlin.android)
     id("com.google.devtools.ksp")
 }
+
+// THIS FUNCTION IS NOW MORE ROBUST
+fun getLocalProperty(key: String, project: org.gradle.api.Project): String {
+    val properties = Properties()
+    val localPropertiesFile = project.rootProject.file("local.properties")
+    if (localPropertiesFile.exists()) {
+        properties.load(FileInputStream(localPropertiesFile))
+        // Safely trim leading/trailing whitespace and remove any surrounding quotes
+        return properties.getProperty(key)?.trim()?.removeSurrounding("\"") ?: ""
+    }
+    return "NO_API_KEY_FOUND" // Return a default if key is not found
+}
+
 
 android {
     namespace = "com.yourname.ainotessummarizer"
@@ -19,6 +36,16 @@ android {
         vectorDrawables {
             useSupportLibrary = true
         }
+
+        // This line remains the same, but the function it calls is now safer
+        buildConfigField("String", "GEMINI_API_KEY", "\"${getLocalProperty("GEMINI_API_KEY", project)}\"")
+
+    }
+
+    buildFeatures {
+        compose = true
+        // Ensure BuildConfig generation is enabled
+        buildConfig = true
     }
 
     buildTypes {
@@ -28,8 +55,6 @@ android {
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
             )
-            // This line removes all Log.d and Log.v calls from the release build
-            proguardFiles("proguard-android-optimize.txt", "proguard-rules.pro")
         }
     }
     compileOptions {
@@ -38,9 +63,6 @@ android {
     }
     kotlinOptions {
         jvmTarget = "1.8"
-    }
-    buildFeatures {
-        compose = true
     }
     composeOptions {
         kotlinCompilerExtensionVersion = "1.5.1"
@@ -52,6 +74,7 @@ android {
     }
 }
 
+// Dependencies remain unchanged
 dependencies {
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.lifecycle.runtime.ktx)
