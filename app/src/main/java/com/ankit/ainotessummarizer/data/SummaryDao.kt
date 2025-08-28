@@ -12,7 +12,8 @@ interface SummaryDao {
     @Insert
     suspend fun insert(summary: Summary)
 
-    @Query("SELECT * FROM summaries ORDER BY timestamp DESC")
+    // Updated query to sort by pinned status first, then timestamp
+    @Query("SELECT * FROM summaries ORDER BY isPinned DESC, timestamp DESC")
     fun getAllSummaries(): Flow<List<Summary>>
 
     @Query("SELECT * FROM summaries WHERE id = :summaryId")

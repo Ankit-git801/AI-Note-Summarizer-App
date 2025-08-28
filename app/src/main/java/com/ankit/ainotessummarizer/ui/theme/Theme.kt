@@ -14,10 +14,7 @@ import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
 import androidx.core.view.WindowCompat
-import androidx.compose.ui.graphics.Color // THIS IS THE MISSING IMPORT
-
-// The color vals have been removed from this file.
-// They now live exclusively in Color.kt
+import androidx.compose.ui.graphics.Color
 
 private val DarkColorScheme = darkColorScheme(
     primary = AiTeal,
@@ -25,6 +22,11 @@ private val DarkColorScheme = darkColorScheme(
     tertiary = AiPurple,
     background = Color(0xFF1C1B1F),
     surface = Color(0xFF1C1B1F),
+    onPrimary = Color.Black,
+    onSecondary = Color.White,
+    onTertiary = Color.White,
+    onBackground = Color(0xFFFFFBFE),
+    onSurface = Color(0xFFFFFBFE),
 )
 
 private val LightColorScheme = lightColorScheme(
@@ -33,12 +35,17 @@ private val LightColorScheme = lightColorScheme(
     tertiary = AiPurpleGrey,
     background = AiLightGrey,
     surface = Color(0xFFFFFBFE),
+    onPrimary = Color.White,
+    onSecondary = Color.Black,
+    onTertiary = Color.White,
+    onBackground = Color(0xFF1C1B1F),
+    onSurface = Color(0xFF1C1B1F),
 )
 
 @Composable
 fun AINotesSummarizerTheme(
     darkTheme: Boolean = isSystemInDarkTheme(),
-    dynamicColor: Boolean = true,
+    dynamicColor: Boolean = true, // Enable dynamic color by default
     content: @Composable () -> Unit
 ) {
     val colorScheme = when {
@@ -53,7 +60,9 @@ fun AINotesSummarizerTheme(
     if (!view.isInEditMode) {
         SideEffect {
             val window = (view.context as Activity).window
-            window.statusBarColor = colorScheme.primary.toArgb()
+            // Make status bar transparent for edge-to-edge
+            window.statusBarColor = Color.Transparent.toArgb()
+            // Set status bar icons to light or dark depending on theme
             WindowCompat.getInsetsController(window, view).isAppearanceLightStatusBars = !darkTheme
         }
     }

@@ -1,25 +1,21 @@
 import java.util.Properties
 import java.io.FileInputStream
 
-// ... other plugins
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.jetbrains.kotlin.android)
     id("com.google.devtools.ksp")
 }
 
-// THIS FUNCTION IS NOW MORE ROBUST
 fun getLocalProperty(key: String, project: org.gradle.api.Project): String {
     val properties = Properties()
     val localPropertiesFile = project.rootProject.file("local.properties")
     if (localPropertiesFile.exists()) {
         properties.load(FileInputStream(localPropertiesFile))
-        // Safely trim leading/trailing whitespace and remove any surrounding quotes
         return properties.getProperty(key)?.trim()?.removeSurrounding("\"") ?: ""
     }
-    return "NO_API_KEY_FOUND" // Return a default if key is not found
+    return "NO_API_KEY_FOUND"
 }
-
 
 android {
     namespace = "com.yourname.ainotessummarizer"
@@ -37,14 +33,11 @@ android {
             useSupportLibrary = true
         }
 
-        // This line remains the same, but the function it calls is now safer
         buildConfigField("String", "GEMINI_API_KEY", "\"${getLocalProperty("GEMINI_API_KEY", project)}\"")
-
     }
 
     buildFeatures {
         compose = true
-        // Ensure BuildConfig generation is enabled
         buildConfig = true
     }
 
@@ -74,7 +67,6 @@ android {
     }
 }
 
-// Dependencies remain unchanged
 dependencies {
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.lifecycle.runtime.ktx)
@@ -85,6 +77,9 @@ dependencies {
     implementation(libs.androidx.ui.tooling.preview)
     implementation(libs.androidx.material3)
     implementation("androidx.compose.material:material-icons-extended-android:1.6.8")
+
+    // Accompanist for Animated Navigation
+    implementation("com.google.accompanist:accompanist-navigation-animation:0.34.0")
 
     // ML Kit for OCR
     implementation(libs.mlkit.text.recognition)

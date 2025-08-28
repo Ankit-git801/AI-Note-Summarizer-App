@@ -9,5 +9,7 @@ data class Summary(
     val id: Int = 0,
     val originalText: String,
     val summarizedText: String,
-    val timestamp: Long = System.currentTimeMillis()
+    val timestamp: Long = System.currentTimeMillis(),
+    val isPinned: Boolean = false,
+    val tags: String = "" // Comma-separated list of tags
 )
