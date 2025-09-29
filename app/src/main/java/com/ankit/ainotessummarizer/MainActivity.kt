@@ -50,6 +50,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.view.WindowCompat
 import androidx.lifecycle.ViewModel
+import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import androidx.navigation.NavController
 import androidx.navigation.NavType
@@ -74,7 +75,7 @@ import java.util.*
 import java.util.concurrent.Executors
 import kotlin.math.roundToInt
 
-// --- ViewModel (No Changes) ---
+// --- ViewModel ---
 class SummarizerViewModel(private val dao: SummaryDao) : ViewModel() {
     private val _uiState = MutableStateFlow<SummarizerUiState>(SummarizerUiState.Initial)
     val uiState = _uiState.asStateFlow()
@@ -92,7 +93,10 @@ class SummarizerViewModel(private val dao: SummaryDao) : ViewModel() {
     val allTags: StateFlow<List<String>> = allSummaries.map { summaries ->
         summaries.flatMap { it.tags.split(",") }.map { it.trim() }.filter { it.isNotBlank() }.distinct().sorted()
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
-    private val generativeModel = GenerativeModel(modelName = "gemini-1.5-flash", apiKey = BuildConfig.GEMINI_API_KEY)
+
+    // UPDATED TO CURRENT WORKING MODEL NAME
+    private val generativeModel = GenerativeModel(modelName = "gemini-2.5-flash", apiKey = BuildConfig.GEMINI_API_KEY)
+
     private val _latestSummary = MutableStateFlow<Summary?>(null)
     val latestSummary = _latestSummary.asStateFlow()
     fun getSummaryById(id: Int): Flow<Summary?> = dao.getSummaryById(id)
@@ -110,16 +114,31 @@ class SummarizerViewModel(private val dao: SummaryDao) : ViewModel() {
         val prompt = "You are an expert assistant specialized in summarizing text. Summarize the following notes into clear, concise bullet points using the '•' character for each point. The desired summary style is: $lengthDescription.\n\nOriginal Text:\n\"\"\"\n$originalText\n\"\"\""
         viewModelScope.launch {
             try {
+                Log.d("SummarizerViewModel", "Starting API call with model: gemini-2.5-flash")
+                Log.d("SummarizerViewModel", "API Key length: ${BuildConfig.GEMINI_API_KEY.length}")
                 val response = generativeModel.generateContent(prompt)
                 response.text?.let { summarizedText ->
                     val summary = Summary(originalText = originalText, summarizedText = summarizedText)
                     dao.insert(summary)
                     _latestSummary.value = summary
                     _uiState.value = SummarizerUiState.Success
-                } ?: run { _uiState.value = SummarizerUiState.Error("Failed to get summary. The response was empty.") }
+                    Log.d("SummarizerViewModel", "Summary generated successfully")
+                } ?: run {
+                    Log.e("SummarizerViewModel", "Empty response from API")
+                    _uiState.value = SummarizerUiState.Error("Failed to get summary. The response was empty.")
+                }
             } catch (e: Exception) {
                 Log.e("SummarizerViewModel", "API Error: ${e.message}", e)
-                _uiState.value = SummarizerUiState.Error("API call failed. Check connection or API Key.")
+                val errorMessage = when {
+                    e.message?.contains("API key", ignoreCase = true) == true -> "Invalid API key. Please check your GEMINI_API_KEY."
+                    e.message?.contains("model", ignoreCase = true) == true -> "Model not available. Please check your API key permissions."
+                    e.message?.contains("quota", ignoreCase = true) == true -> "API quota exceeded. Please try again later."
+                    e.message?.contains("401", ignoreCase = true) == true -> "Authentication failed. Check your API key."
+                    e.message?.contains("403", ignoreCase = true) == true -> "Access denied. Check your API key permissions."
+                    e.message?.contains("network", ignoreCase = true) == true -> "Network error. Check your internet connection."
+                    else -> "API call failed: ${e.message}"
+                }
+                _uiState.value = SummarizerUiState.Error(errorMessage)
             }
         }
     }
@@ -204,7 +223,6 @@ fun SummarizerScreenWithPermission(viewModel: SummarizerViewModel, navController
     SummarizerScreen(cameraPermissionState.status.isGranted, viewModel, navController, darkTheme, onThemeChange)
 }
 
-// --- FINAL, DEFINITIVE SummarizerScreen ---
 @Composable
 fun SummarizerScreen(hasPermission: Boolean, viewModel: SummarizerViewModel, navController: NavController, darkTheme: Boolean, onThemeChange: () -> Unit) {
     val view = LocalView.current
@@ -213,7 +231,7 @@ fun SummarizerScreen(hasPermission: Boolean, viewModel: SummarizerViewModel, nav
     val uiState by viewModel.uiState.collectAsState()
     var summaryLength by remember { mutableFloatStateOf(150f) }
     val coroutineScope = rememberCoroutineScope()
-    val scrollState = rememberScrollState() // State for the scrollable column
+    val scrollState = rememberScrollState()
 
     LaunchedEffect(uiState) {
         if (uiState is SummarizerUiState.Success) {
@@ -229,7 +247,7 @@ fun SummarizerScreen(hasPermission: Boolean, viewModel: SummarizerViewModel, nav
         )
     } else {
         Scaffold(
-            modifier = Modifier.fillMaxSize().imePadding(), // Apply padding for the keyboard here
+            modifier = Modifier.fillMaxSize().imePadding(),
             topBar = {
                 TopAppBar(
                     title = { Text("AI Notes Summarizer") },
@@ -309,13 +327,12 @@ fun SummarizerScreen(hasPermission: Boolean, viewModel: SummarizerViewModel, nav
                 modifier = Modifier
                     .padding(innerPadding)
                     .fillMaxSize()
-                    .verticalScroll(scrollState) // This makes the column scrollable
+                    .verticalScroll(scrollState)
             ) {
                 OutlinedTextField(
                     value = text,
                     onValueChange = {
                         text = it
-                        // **THE KEY FIX**: On every text change, scroll to the bottom.
                         coroutineScope.launch {
                             scrollState.animateScrollTo(scrollState.maxValue)
                         }
@@ -329,6 +346,8 @@ fun SummarizerScreen(hasPermission: Boolean, viewModel: SummarizerViewModel, nav
         }
     }
 }
+
+// [Rest of the composables remain exactly the same - no changes needed below this point]
 
 @Composable
 fun ResultScreen(viewModel: SummarizerViewModel, navController: NavController, snackbarHostState: SnackbarHostState) {
@@ -486,7 +505,6 @@ fun DetailScreen(summaryId: Int, viewModel: SummarizerViewModel, navController: 
         } ?: Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { CircularProgressIndicator() }
     }
 }
-
 
 // --- Other Composables ---
 @Composable
