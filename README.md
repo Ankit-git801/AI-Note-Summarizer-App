@@ -2,73 +2,69 @@
 
 ![License](https://img.shields.io/badge/License-MIT-blue.svg) ![Kotlin](https://img.shields.io/badge/Kotlin-100%25-blueviolet.svg) ![Jetpack Compose](https://img.shields.io/badge/Jetpack%20Compose-UI-brightgreen.svg)
 
-Turn scanned notes or pasted text into clean, concise summaries using **on-device OCR** and **Google Gemini AI**, then **save, tag, search, pin, and share**—all in a modern, smooth **Jetpack Compose UI**.
+Turn scanned notes or pasted text into clean, concise summaries using **on-device OCR** and **Google Gemini AI**, then **save, tag, search, pin, and share**—all in a modern, high-performance **Jetpack Compose UI**.
 
 ---
 
 ## ✨ Features
 
--   📷 **OCR Capture**: Scan text directly from paper or screens using a live camera preview powered by **CameraX** and **ML Kit Text Recognition**.
--   🤖 **AI Summaries**: Generate clear, bullet-point summaries with **Google's Gemini 1.5 Flash model**. The summary length is easily adjustable with a simple slider.
--   🗂️ **Robust History & Organization**: Automatically saves all summaries with timestamps. Features a powerful search that queries original text, summaries, and tags simultaneously.
--   📌 **Pin & Tag**: Pin your most important summaries to the top of the history list for quick access. Organize notes by adding comma-separated tags, which can be used as filters.
--   🔄 **Edit, Share & Copy**: Easily edit generated summaries and tags. Share or copy your notes with a single tap from both the result and detail screens.
--   🎨 **Modern UI**: A polished user experience built with **Material 3** and **Jetpack Compose**, featuring smooth animations, a dark mode theme, and an edge-to-edge display.
+-   📷 **Live OCR Feedback**: Scan text with a live camera preview featuring **real-time visual boxes** over detected words, powered by **CameraX** and **ML Kit**.
+-   🤖 **AI Streaming Summaries**: Generate summaries in real-time with **Google Gemini 2.5 Flash**. Watch the text flow word-by-word as it's generated.
+-   🏷️ **AI-Powered Smart Tagging**: Let AI automatically categorize your notes with relevant tags (#Business, #Ideas, #Health) for effortless organization.
+-   🚀 **Instant Search**: Lightning-fast history lookups using **Room Full-Text Search (FTS4)**, capable of querying thousands of notes instantly.
+-   🎨 **Premium UI/UX**: A modern **Glassmorphism** theme with vibrant gradients, bold typography, and smooth micro-animations.
+-   📄 **Professional Export**: Export your summaries as clean **Markdown (.md)** files to share with professional apps like Notion, Obsidian, or via email.
+-   📌 **Pin & Manage**: Keep your most important summaries at the top. Edit, share, and manage your history with ease.
 
 ---
 
 ## 🛠 Tech Stack
 
 -   **Language** → **Kotlin**
--   **UI** → **Jetpack Compose** (Material 3, animations, icons-extended)
--   **Architecture** → **MVVM** with a ViewModel, StateFlow, and Coroutines for managing state and asynchronous operations.
--   **AI** → **Google Gemini API** (`gemini-1.5-flash`) for summarization.
--   **OCR** → **CameraX** for camera management and **ML Kit Text Recognition** (Latin script) for on-device text recognition.
--   **Database** → **Room** for local persistence, including a schema migration from version 1 to 2 to add `isPinned` and `tags` functionality.
--   **Navigation** → **Accompanist Navigation Animation** for animated screen transitions.
--   **Permissions** → **Accompanist Permissions** for handling the camera permission request gracefully.
--   **Build** → **Gradle KSP** for Room's annotation processing and **BuildConfig** for secure API key injection.
+-   **UI** → **Jetpack Compose** (Material 3, Glassmorphism, Animations)
+-   **Architecture** → **MVVM** with StateFlow and Coroutines.
+-   **AI** → **Google Gemini API** (`gemini-2.5-flash`) with real-time streaming.
+-   **OCR** → **ML Kit Text Recognition** with live detection overlays.
+-   **Database** → **Room** with **FTS4** optimization for high-speed text search.
+-   **Navigation** → **Accompanist Navigation Animation**.
+-   **Build** → **Gradle KSP** and secure API key injection via **local.properties**.
 
 ---
 
 ## 🚀 Quick Start
 
 ### 1. Clone the Repository
-git clone https://github.com/your-username/AI-Note-Summarizer-App.git
+```bash
+git clone https://github.com/Ankit-git801/AI-Note-Summarizer-App.git
 cd AI-Note-Summarizer-App
+```
 
 ### 2. Set Up the Gemini API Key
 
 The app uses the **BuildConfig** method to securely handle the API key.
 
-1.  Create a file named `local.properties` in the root directory of the project.
-2.  Add your Gemini API key to this file as follows:
-
+1.  Create a file named `local.properties` in the root directory.
+2.  Add your Gemini API key:
     ```
     GEMINI_API_KEY="YOUR_API_KEY_HERE"
     ```
-
-3.  The `app/build.gradle.kts` file is already configured to read this value and make it available in the app's `BuildConfig`.
+3.  Ensure the **Generative Language API** is enabled in your [Google AI Studio](https://aistudio.google.com/).
 
 ### 3. Open and Run the Project
 
-1.  Open the project in a recent version of Android Studio.
-2.  Let Gradle sync and download the required dependencies.
-3.  Run the app on an Android device or emulator (API 26 or higher is recommended). The camera functionality works best on a physical device.
+1.  Open in Android Studio.
+2.  Perform a **Gradle Sync**.
+3.  Run on an Android device (API 26+).
 
 ---
 
 ## 🔧 Project Details
 
-### Permissions
-
-The app requests the following permissions, which are declared in the `AndroidManifest.xml`:
--   `android.permission.CAMERA`: Required for the OCR feature. It is requested at runtime using Accompanist Permissions. The app is fully functional without it if you only use the paste-text feature.
--   `android.permission.INTERNET`: Required to make API calls to the Google Gemini service.
-
 ### Database Migration
+The app handles automated migrations (v1 -> v2 -> v3) to support new features like pinning and Full-Text Search without data loss.
 
-The app includes a database migration from version 1 to 2, which adds the `isPinned` and `tags` columns to the `summaries` table. This is handled in `data/AppDatabase.kt` and ensures that users updating the app will not lose their existing data.
+### Performance Tuning
+Model parameters are tuned for **latency reduction**, ensuring that the 2.5-Flash model provides the fastest possible results for mobile users.
 
 ---
 
