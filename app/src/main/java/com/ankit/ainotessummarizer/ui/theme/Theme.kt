@@ -1,4 +1,4 @@
-package com.yourname.ainotessummarizer.ui.theme
+package com.ankit.ainotessummarizer.ui.theme
 
 import android.app.Activity
 import android.os.Build
@@ -17,39 +17,39 @@ import androidx.core.view.WindowCompat
 import androidx.compose.ui.graphics.Color
 
 private val DarkColorScheme = darkColorScheme(
-    primary = AiTeal,
-    secondary = AiPurpleGrey,
-    tertiary = AiPurple,
-    background = Color(0xFF1C1B1F),
-    surface = Color(0xFF1C1B1F),
-    onPrimary = Color.Black,
+    primary = AiPrimary,
+    secondary = AiSecondary,
+    tertiary = AiTertiary,
+    background = AiBackgroundDark,
+    surface = AiSurfaceDark,
+    onPrimary = Color.White,
     onSecondary = Color.White,
     onTertiary = Color.White,
-    onBackground = Color(0xFFFFFBFE),
-    onSurface = Color(0xFFFFFBFE),
+    onBackground = Color(0xFFF1F5F9),
+    onSurface = Color(0xFFF1F5F9),
 )
 
 private val LightColorScheme = lightColorScheme(
-    primary = AiPurple,
-    secondary = AiTeal,
-    tertiary = AiPurpleGrey,
-    background = AiLightGrey,
-    surface = Color(0xFFFFFBFE),
+    primary = AiPrimary,
+    secondary = AiSecondary,
+    tertiary = AiTertiary,
+    background = Color(0xFFF8FAFC),
+    surface = Color.White,
     onPrimary = Color.White,
-    onSecondary = Color.Black,
+    onSecondary = Color.White,
     onTertiary = Color.White,
-    onBackground = Color(0xFF1C1B1F),
-    onSurface = Color(0xFF1C1B1F),
+    onBackground = Color(0xFF1E293B),
+    onSurface = Color(0xFF1E293B),
 )
 
 @Composable
 fun AINotesSummarizerTheme(
     darkTheme: Boolean = isSystemInDarkTheme(),
     dynamicColor: Boolean = true, // Enable dynamic color by default
-    content: @Composable () -> Unit
+    content: @Composable () -> Unit,
 ) {
     val colorScheme = when {
-        dynamicColor && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S -> {
+        (dynamicColor && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) -> {
             val context = LocalContext.current
             if (darkTheme) dynamicDarkColorScheme(context) else dynamicLightColorScheme(context)
         }

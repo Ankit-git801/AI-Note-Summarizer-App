@@ -1,8 +1,8 @@
-package com.yourname.ainotessummarizer
+package com.ankit.ainotessummarizer
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
-import com.yourname.ainotessummarizer.data.SummaryDao
+import com.ankit.ainotessummarizer.data.SummaryDao
 
 class ViewModelFactory(private val dao: SummaryDao) : ViewModelProvider.Factory {
     override fun <T : ViewModel> create(modelClass: Class<T>): T {

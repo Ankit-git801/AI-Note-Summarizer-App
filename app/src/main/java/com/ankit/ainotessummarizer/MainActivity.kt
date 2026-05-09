@@ -1,6 +1,6 @@
 @file:OptIn(ExperimentalPermissionsApi::class, ExperimentalMaterial3Api::class, ExperimentalAnimationApi::class, ExperimentalLayoutApi::class, ExperimentalFoundationApi::class)
 
-package com.yourname.ainotessummarizer
+package com.ankit.ainotessummarizer
 
 import android.Manifest
 import android.annotation.SuppressLint
@@ -44,7 +44,18 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.compose.ui.platform.LocalView
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.geometry.Rect
+import androidx.compose.foundation.Canvas
+import androidx.compose.ui.draw.blur
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.foundation.shape.RoundedCornerShape
+import com.google.ai.client.generativeai.type.generationConfig
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
@@ -64,10 +75,11 @@ import com.google.accompanist.permissions.rememberPermissionState
 import com.google.ai.client.generativeai.GenerativeModel
 import com.google.mlkit.vision.common.InputImage
 import com.google.mlkit.vision.text.latin.TextRecognizerOptions
-import com.yourname.ainotessummarizer.data.AppDatabase
-import com.yourname.ainotessummarizer.data.Summary
-import com.yourname.ainotessummarizer.data.SummaryDao
-import com.yourname.ainotessummarizer.ui.theme.AINotesSummarizerTheme
+import com.ankit.ainotessummarizer.data.AppDatabase
+import com.ankit.ainotessummarizer.data.Summary
+import com.ankit.ainotessummarizer.data.SummaryDao
+import com.ankit.ainotessummarizer.ui.theme.PrimaryGradient
+import com.ankit.ainotessummarizer.ui.theme.AINotesSummarizerTheme
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
@@ -85,8 +97,15 @@ class SummarizerViewModel(private val dao: SummaryDao) : ViewModel() {
     val selectedTag = _selectedTag.asStateFlow()
     private val allSummaries = dao.getAllSummaries()
     val filteredHistory: StateFlow<List<Summary>> = combine(allSummaries, searchQuery, selectedTag) { summaries, query, tag ->
-        val searched = if (query.isBlank()) summaries else summaries.filter {
-            it.originalText.contains(query, ignoreCase = true) || it.summarizedText.contains(query, ignoreCase = true) || it.tags.contains(query, ignoreCase = true)
+        val searched = if (query.isBlank()) {
+            summaries
+        } else {
+            // We use simple filter here for small lists, but Dao has searchSummaries for larger scale
+            summaries.filter {
+                it.originalText.contains(query, ignoreCase = true) ||
+                        it.summarizedText.contains(query, ignoreCase = true) ||
+                        it.tags.contains(query, ignoreCase = true)
+            }
         }
         if (tag == null) searched else searched.filter { s -> s.tags.split(",").any { it.trim().equals(tag, ignoreCase = true) } }
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
@@ -94,8 +113,16 @@ class SummarizerViewModel(private val dao: SummaryDao) : ViewModel() {
         summaries.flatMap { it.tags.split(",") }.map { it.trim() }.filter { it.isNotBlank() }.distinct().sorted()
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
-    // UPDATED TO CURRENT WORKING MODEL NAME
-    private val generativeModel = GenerativeModel(modelName = "gemini-2.5-flash", apiKey = BuildConfig.GEMINI_API_KEY)
+    // OPTIMIZED FOR SPEED AND FOCUS
+    private val generativeModel = GenerativeModel(
+        modelName = "gemini-2.5-flash",
+        apiKey = BuildConfig.GEMINI_API_KEY,
+        generationConfig = generationConfig {
+            temperature = 0.4f // Lower temperature = faster, more predictable response
+            topP = 0.8f // Faster sampling
+            topK = 20 // Focus on more likely tokens for speed
+        }
+    )
 
     private val _latestSummary = MutableStateFlow<Summary?>(null)
     val latestSummary = _latestSummary.asStateFlow()
@@ -112,34 +139,57 @@ class SummarizerViewModel(private val dao: SummaryDao) : ViewModel() {
             else -> "very detailed, a few paragraphs long"
         }
         val prompt = "You are an expert assistant specialized in summarizing text. Summarize the following notes into clear, concise bullet points using the '•' character for each point. The desired summary style is: $lengthDescription.\n\nOriginal Text:\n\"\"\"\n$originalText\n\"\"\""
+
         viewModelScope.launch {
             try {
-                Log.d("SummarizerViewModel", "Starting API call with model: gemini-2.5-flash")
-                Log.d("SummarizerViewModel", "API Key length: ${BuildConfig.GEMINI_API_KEY.length}")
-                val response = generativeModel.generateContent(prompt)
-                response.text?.let { summarizedText ->
-                    val summary = Summary(originalText = originalText, summarizedText = summarizedText)
-                    dao.insert(summary)
-                    _latestSummary.value = summary
+                if (BuildConfig.GEMINI_API_KEY.isEmpty() || BuildConfig.GEMINI_API_KEY == "NO_API_KEY_FOUND") {
+                    _uiState.value = SummarizerUiState.Error("API Key is missing. Check local.properties.")
+                    return@launch
+                }
+
+                var fullText = ""
+                var lastUpdate = 0L
+                generativeModel.generateContentStream(prompt).collect { chunk ->
+                    fullText += chunk.text ?: ""
+                    // Batch UI updates every 100ms for maximum smoothness
+                    if (System.currentTimeMillis() - lastUpdate > 100) {
+                        _uiState.value = SummarizerUiState.Streaming(fullText)
+                        lastUpdate = System.currentTimeMillis()
+                    }
+                }
+                _uiState.value = SummarizerUiState.Streaming(fullText) // Final update
+
+                if (fullText.isNotBlank()) {
+                    val summary = Summary(originalText = originalText, summarizedText = fullText)
+                    val id = dao.insert(summary)
+                    val savedSummary = summary.copy(id = id.toInt())
+                    _latestSummary.value = savedSummary
+
+                    // Start Smart Tagging
+                    _uiState.value = SummarizerUiState.Tagging
+                    generateSmartTags(savedSummary)
+
                     _uiState.value = SummarizerUiState.Success
-                    Log.d("SummarizerViewModel", "Summary generated successfully")
-                } ?: run {
-                    Log.e("SummarizerViewModel", "Empty response from API")
-                    _uiState.value = SummarizerUiState.Error("Failed to get summary. The response was empty.")
+                } else {
+                    _uiState.value = SummarizerUiState.Error("Empty response from API")
                 }
             } catch (e: Exception) {
                 Log.e("SummarizerViewModel", "API Error: ${e.message}", e)
-                val errorMessage = when {
-                    e.message?.contains("API key", ignoreCase = true) == true -> "Invalid API key. Please check your GEMINI_API_KEY."
-                    e.message?.contains("model", ignoreCase = true) == true -> "Model not available. Please check your API key permissions."
-                    e.message?.contains("quota", ignoreCase = true) == true -> "API quota exceeded. Please try again later."
-                    e.message?.contains("401", ignoreCase = true) == true -> "Authentication failed. Check your API key."
-                    e.message?.contains("403", ignoreCase = true) == true -> "Access denied. Check your API key permissions."
-                    e.message?.contains("network", ignoreCase = true) == true -> "Network error. Check your internet connection."
-                    else -> "API call failed: ${e.message}"
-                }
-                _uiState.value = SummarizerUiState.Error(errorMessage)
+                _uiState.value = SummarizerUiState.Error("Failed to generate summary: ${e.message}")
             }
+        }
+    }
+
+    private suspend fun generateSmartTags(summary: Summary) {
+        val tagPrompt = "Generate 3-5 short, one-word tags (comma separated, no #) for the following text:\n\n${summary.summarizedText}"
+        try {
+            val response = generativeModel.generateContent(tagPrompt)
+            response.text?.let { tags ->
+                val cleanedTags = tags.replace("\n", "").trim()
+                dao.update(summary.copy(tags = cleanedTags))
+            }
+        } catch (e: Exception) {
+            Log.e("SummarizerViewModel", "Tagging Error", e)
         }
     }
     fun togglePin(summary: Summary) { viewModelScope.launch { dao.update(summary.copy(isPinned = !summary.isPinned)) } }
@@ -149,7 +199,14 @@ class SummarizerViewModel(private val dao: SummaryDao) : ViewModel() {
 }
 
 // --- UI State ---
-sealed interface SummarizerUiState { object Initial:SummarizerUiState; object Loading:SummarizerUiState; object Success:SummarizerUiState; data class Error(val errorMessage: String):SummarizerUiState }
+sealed interface SummarizerUiState {
+    object Initial : SummarizerUiState
+    object Loading : SummarizerUiState
+    data class Streaming(val partialText: String) : SummarizerUiState
+    object Tagging : SummarizerUiState
+    object Success : SummarizerUiState
+    data class Error(val errorMessage: String) : SummarizerUiState
+}
 
 // --- Main Activity ---
 class MainActivity : ComponentActivity() {
@@ -250,7 +307,7 @@ fun SummarizerScreen(hasPermission: Boolean, viewModel: SummarizerViewModel, nav
             modifier = Modifier.fillMaxSize().imePadding(),
             topBar = {
                 TopAppBar(
-                    title = { Text("AI Notes Summarizer") },
+                    title = { Text("AI Notes Summarizer", fontWeight = FontWeight.ExtraBold) },
                     actions = {
                         IconButton(onClick = { view.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP); onThemeChange() }) {
                             AnimatedContent(darkTheme, label = "ThemeIcon") { isDark ->
@@ -259,7 +316,10 @@ fun SummarizerScreen(hasPermission: Boolean, viewModel: SummarizerViewModel, nav
                         }
                         IconButton(onClick = { navController.navigate(AppDestinations.HISTORY_ROUTE) }) { Icon(Icons.Default.History, "History") }
                     },
-                    colors = TopAppBarDefaults.topAppBarColors(Color.Transparent)
+                    colors = TopAppBarDefaults.topAppBarColors(
+                        containerColor = Color.Transparent,
+                        titleContentColor = MaterialTheme.colorScheme.onSurface
+                    )
                 )
             },
             bottomBar = {
@@ -288,23 +348,38 @@ fun SummarizerScreen(hasPermission: Boolean, viewModel: SummarizerViewModel, nav
                     )
                     Spacer(Modifier.height(16.dp))
                     AnimatedContent(
-                        targetState = uiState is SummarizerUiState.Loading,
+                        targetState = uiState,
                         label = "SummarizeBtnAnim",
                         modifier = Modifier.fillMaxWidth()
-                    ) { isLoading ->
-                        if (isLoading) {
-                            Box(contentAlignment = Alignment.Center, modifier = Modifier.fillMaxWidth()) {
-                                CircularProgressIndicator()
+                    ) { state ->
+                        when (state) {
+                            is SummarizerUiState.Loading -> {
+                                Box(contentAlignment = Alignment.Center, modifier = Modifier.fillMaxWidth()) {
+                                    CircularProgressIndicator()
+                                }
                             }
-                        } else {
-                            Button(
-                                onClick = {
-                                    view.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
-                                    if (text.isNotBlank()) viewModel.summarize(text, summaryLength.roundToInt())
-                                },
-                                enabled = text.isNotBlank(),
-                                modifier = Modifier.fillMaxWidth()
-                            ) { Text("Summarize Text") }
+                            is SummarizerUiState.Streaming -> {
+                                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                    LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
+                                    Text("Writing...", style = MaterialTheme.typography.labelSmall, modifier = Modifier.padding(top = 4.dp))
+                                }
+                            }
+                            is SummarizerUiState.Tagging -> {
+                                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                    CircularProgressIndicator(modifier = Modifier.size(24.dp))
+                                    Text("Categorizing...", style = MaterialTheme.typography.labelSmall, modifier = Modifier.padding(top = 4.dp))
+                                }
+                            }
+                            else -> {
+                                Button(
+                                    onClick = {
+                                        view.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
+                                        if (text.isNotBlank()) viewModel.summarize(text, summaryLength.roundToInt())
+                                    },
+                                    enabled = text.isNotBlank(),
+                                    modifier = Modifier.fillMaxWidth()
+                                ) { Text("Summarize Text") }
+                            }
                         }
                     }
                     if (uiState is SummarizerUiState.Error) {
@@ -352,6 +427,7 @@ fun SummarizerScreen(hasPermission: Boolean, viewModel: SummarizerViewModel, nav
 @Composable
 fun ResultScreen(viewModel: SummarizerViewModel, navController: NavController, snackbarHostState: SnackbarHostState) {
     val summary by viewModel.latestSummary.collectAsState()
+    val uiState by viewModel.uiState.collectAsState()
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     val view = LocalView.current
@@ -362,6 +438,7 @@ fun ResultScreen(viewModel: SummarizerViewModel, navController: NavController, s
             navigationIcon = { IconButton(onClick = { viewModel.resetState(); navController.popBackStack() }) { Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back") } },
             actions = {
                 summary?.let {
+                    IconButton(onClick = { view.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP); exportToMarkdown(context, it) }) { Icon(Icons.Default.Description, "Export") }
                     IconButton(onClick = { view.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP); copyToClipboard(context, it.summarizedText); scope.launch { snackbarHostState.showSnackbar("Summary copied!") } }) { Icon(Icons.Default.ContentCopy, "Copy") }
                     IconButton(onClick = { view.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP); shareText(context, it.summarizedText) }) { Icon(Icons.Default.Share, "Share") }
                 }
@@ -369,9 +446,12 @@ fun ResultScreen(viewModel: SummarizerViewModel, navController: NavController, s
             colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.Transparent)
         )
     }) { padding ->
-        summary?.let {
-            val bulletPoints = remember(it.summarizedText) {
-                it.summarizedText.split("\n").mapNotNull { point ->
+        val streamingText = (uiState as? SummarizerUiState.Streaming)?.partialText
+        val finalSummary = summary
+
+        if (finalSummary != null) {
+            val bulletPoints = remember(finalSummary.summarizedText) {
+                finalSummary.summarizedText.split("\n").mapNotNull { point ->
                     point.trim().replaceFirst(Regex("^\\s*[*•]\\s*"), "").takeIf { it.isNotBlank() }
                 }
             }
@@ -383,10 +463,17 @@ fun ResultScreen(viewModel: SummarizerViewModel, navController: NavController, s
                 }
             } else {
                 Column(modifier = Modifier.padding(padding).padding(16.dp).fillMaxSize().verticalScroll(rememberScrollState())) {
-                    Text(it.summarizedText, style = MaterialTheme.typography.bodyLarge)
+                    Text(finalSummary.summarizedText, style = MaterialTheme.typography.bodyLarge)
                 }
             }
-        } ?: Box(Modifier.padding(padding).fillMaxSize(), contentAlignment = Alignment.Center) { CircularProgressIndicator() }
+        } else if (streamingText != null) {
+            Column(modifier = Modifier.padding(padding).padding(16.dp).fillMaxSize().verticalScroll(rememberScrollState())) {
+                Text(streamingText, style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text("...generating", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.primary)
+            }
+        } else {
+            Box(Modifier.padding(padding).fillMaxSize(), contentAlignment = Alignment.Center) { CircularProgressIndicator() }
+        }
     }
 }
 
@@ -454,6 +541,7 @@ fun DetailScreen(summaryId: Int, viewModel: SummarizerViewModel, navController: 
                             scope.launch { snackbarHostState.showSnackbar("Summary saved!") }
                         }) { Icon(Icons.Default.Done, "Save") }
                     } else {
+                        IconButton(onClick = { view.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP); exportToMarkdown(context, summary) }) { Icon(Icons.Default.Description, "Export") }
                         IconButton(onClick = { view.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP); viewModel.togglePin(summary) }) {
                             Icon(if (summary.isPinned) Icons.Filled.PushPin else Icons.Outlined.PushPin, "Pin Summary")
                         }
@@ -529,25 +617,45 @@ fun BulletedListItem(text: String) {
 
 @Composable
 fun HistoryItem(summary: Summary, onClick: () -> Unit, onDelete: () -> Unit) {
-    Card(modifier = Modifier.fillMaxWidth().clickable(onClick = onClick), elevation = CardDefaults.cardElevation(defaultElevation = 2.dp), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)) {
-        Row(modifier = Modifier.padding(start = 16.dp, top = 12.dp, bottom = 12.dp, end = 8.dp).fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-            Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onClick),
+        shape = RoundedCornerShape(20.dp),
+        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+        border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
+    ) {
+        Row(modifier = Modifier.padding(start = 16.dp, top = 16.dp, bottom = 16.dp, end = 8.dp).fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+            Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(10.dp)) {
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween, modifier = Modifier.fillMaxWidth()) {
-                    Text(SimpleDateFormat("MMM dd, yyyy - hh:mm a", Locale.getDefault()).format(Date(summary.timestamp)), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Text(SimpleDateFormat("MMM dd, hh:mm a", Locale.getDefault()).format(Date(summary.timestamp)), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     if (summary.isPinned) {
                         Icon(Icons.Filled.PushPin, "Pinned", modifier = Modifier.size(16.dp), tint = MaterialTheme.colorScheme.primary)
                     }
                 }
-                Text(summary.summarizedText, style = MaterialTheme.typography.bodyMedium, maxLines = 3, overflow = TextOverflow.Ellipsis)
+                Text(summary.summarizedText, style = MaterialTheme.typography.bodyMedium, maxLines = 3, overflow = TextOverflow.Ellipsis, fontWeight = FontWeight.Medium)
                 if (summary.tags.isNotBlank()) {
-                    FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                        summary.tags.split(",").take(4).forEach { tag ->
-                            if (tag.isNotBlank()) AssistChip(onClick = {}, label = { Text(tag.trim(), style = MaterialTheme.typography.labelSmall) })
+                    FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        summary.tags.split(",").take(3).forEach { tag ->
+                            if (tag.isNotBlank()) {
+                                Surface(
+                                    color = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.4f),
+                                    shape = RoundedCornerShape(8.dp)
+                                ) {
+                                    Text(
+                                        tag.trim(),
+                                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                                        style = MaterialTheme.typography.labelSmall,
+                                        color = MaterialTheme.colorScheme.onSecondaryContainer
+                                    )
+                                }
+                            }
                         }
                     }
                 }
             }
-            IconButton(onClick = onDelete) { Icon(Icons.Default.Delete, "Delete Summary", tint = MaterialTheme.colorScheme.error) }
+            IconButton(onClick = onDelete) { Icon(Icons.Default.DeleteOutline, "Delete", tint = MaterialTheme.colorScheme.error.copy(alpha = 0.7f)) }
         }
     }
 }
@@ -569,6 +677,31 @@ fun EmptyState(title: String, subtitle: String, icon: androidx.compose.ui.graphi
 }
 
 // --- Utility & Camera Functions ---
+private fun exportToMarkdown(context: Context, summary: Summary) {
+    val date = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.getDefault()).format(Date(summary.timestamp))
+    val markdown = """
+        # Summary - ${SimpleDateFormat("MMM dd, yyyy", Locale.getDefault()).format(Date(summary.timestamp))}
+        
+        ## Original Text
+        ${summary.originalText}
+        
+        ## AI Summary
+        ${summary.summarizedText}
+        
+        ---
+        Tags: ${summary.tags}
+    """.trimIndent()
+    
+    val sendIntent: Intent = Intent().apply {
+        action = Intent.ACTION_SEND
+        putExtra(Intent.EXTRA_TEXT, markdown)
+        putExtra(Intent.EXTRA_TITLE, "Summary_$date.md")
+        type = "text/markdown"
+    }
+    val shareIntent = Intent.createChooser(sendIntent, "Export Summary")
+    context.startActivity(shareIntent)
+}
+
 private fun copyToClipboard(context: Context, text: String) {
     val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
     val clip = ClipData.newPlainText("Copied Summary", text)
@@ -588,6 +721,7 @@ fun CameraPreview(onTextRecognized: (String) -> Unit, onClose: () -> Unit) {
     val cameraProviderFuture = remember { ProcessCameraProvider.getInstance(context) }
     var imageAnalysis: ImageAnalysis? by remember { mutableStateOf(null) }
     val executor = remember { Executors.newSingleThreadExecutor() }
+    var detectedBoxes by remember { mutableStateOf<List<Rect>>(emptyList()) }
 
     Box(modifier = Modifier.fillMaxSize()) {
         AndroidView(
@@ -598,18 +732,39 @@ fun CameraPreview(onTextRecognized: (String) -> Unit, onClose: () -> Unit) {
                 val cameraSelector = CameraSelector.DEFAULT_BACK_CAMERA
                 val analysis = ImageAnalysis.Builder().setBackpressureStrategy(ImageAnalysis.STRATEGY_KEEP_ONLY_LATEST).build()
                 imageAnalysis = analysis
-                try { cameraProvider.unbindAll(); cameraProvider.bindToLifecycle(lifecycleOwner, cameraSelector, preview, analysis) }
-                catch (e: Exception) { Log.e("CameraPreview", "Binding failed", e) }
+                try {
+                    cameraProvider.unbindAll()
+                    cameraProvider.bindToLifecycle(lifecycleOwner, cameraSelector, preview, analysis)
+                } catch (e: Exception) { Log.e("CameraPreview", "Binding failed", e) }
                 previewView
             },
             modifier = Modifier.fillMaxSize()
         )
-        Button(onClick = { imageAnalysis?.setAnalyzer(executor, TextRecognitionAnalyzer(onTextRecognized)) }, modifier = Modifier.align(Alignment.BottomCenter).padding(16.dp)) { Text("Scan Text") }
+        
+        // Text Overlay for Live Feedback
+        Canvas(modifier = Modifier.fillMaxSize()) {
+            detectedBoxes.forEach { rect ->
+                drawRect(
+                    color = Color.Cyan.copy(alpha = 0.5f),
+                    topLeft = rect.topLeft,
+                    size = rect.size,
+                    style = Stroke(width = 2.dp.toPx())
+                )
+            }
+        }
+
+        Button(
+            onClick = { imageAnalysis?.setAnalyzer(executor, TextRecognitionAnalyzer(onTextRecognized) { boxes -> detectedBoxes = boxes }) },
+            modifier = Modifier.align(Alignment.BottomCenter).padding(16.dp)
+        ) { Text("Scan Text") }
         IconButton(onClick = onClose, modifier = Modifier.align(Alignment.TopEnd).padding(16.dp)) { Icon(Icons.Default.Close, "Close Camera", tint = Color.White) }
     }
 }
 
-private class TextRecognitionAnalyzer(private val onTextRecognized: (String) -> Unit) : ImageAnalysis.Analyzer {
+private class TextRecognitionAnalyzer(
+    private val onTextRecognized: (String) -> Unit,
+    private val onBoxesDetected: (List<Rect>) -> Unit
+) : ImageAnalysis.Analyzer {
     private val recognizer = com.google.mlkit.vision.text.TextRecognition.getClient(TextRecognizerOptions.DEFAULT_OPTIONS)
     private var isBusy = false
     @SuppressLint("UnsafeOptInUsageError")
@@ -619,7 +774,16 @@ private class TextRecognitionAnalyzer(private val onTextRecognized: (String) -> 
         imageProxy.image?.let { mediaImage ->
             val image = InputImage.fromMediaImage(mediaImage, imageProxy.imageInfo.rotationDegrees)
             recognizer.process(image)
-                .addOnSuccessListener { onTextRecognized(it.text) }
+                .addOnSuccessListener { visionText ->
+                    onBoxesDetected(visionText.textBlocks.mapNotNull { it.boundingBox?.let { b -> Rect(b.left.toFloat(), b.top.toFloat(), b.right.toFloat(), b.bottom.toFloat()) } })
+                    if (imageProxy.imageInfo.timestamp % 10 == 0L) { // Limit recognition calls for smoother overlay
+                         // We only call the final callback when user clicks scan in this design, 
+                         // but we could auto-recognize here.
+                    }
+                    // For the "Scan" button to work, we need a way to trigger final text extraction.
+                    // This analyzer is now used for both live feedback and the final scan.
+                    onTextRecognized(visionText.text)
+                }
                 .addOnFailureListener { e -> Log.e("TextAnalyzer", "Text recognition failed", e) }
                 .addOnCompleteListener { isBusy = false; imageProxy.close() }
         } ?: run { isBusy = false; imageProxy.close() }

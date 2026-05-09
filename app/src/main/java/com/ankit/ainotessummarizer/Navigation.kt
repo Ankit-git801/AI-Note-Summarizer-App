@@ -1,4 +1,4 @@
-package com.yourname.ainotessummarizer
+package com.ankit.ainotessummarizer
 
 import androidx.navigation.NavType
 import androidx.navigation.navArgument
