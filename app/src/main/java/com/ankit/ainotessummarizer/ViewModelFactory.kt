@@ -2,13 +2,19 @@ package com.ankit.ainotessummarizer
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
-import com.ankit.ainotessummarizer.data.SummaryDao
+import com.ankit.ainotessummarizer.data.NoteDao
+import com.ankit.ainotessummarizer.data.NoteRepository
+import com.ankit.ainotessummarizer.data.SubjectDao
 
-class ViewModelFactory(private val dao: SummaryDao) : ViewModelProvider.Factory {
+class MainViewModelFactory(
+    private val noteDao: NoteDao,
+    private val subjectDao: SubjectDao
+) : ViewModelProvider.Factory {
     override fun <T : ViewModel> create(modelClass: Class<T>): T {
-        if (modelClass.isAssignableFrom(SummarizerViewModel::class.java)) {
+        if (modelClass.isAssignableFrom(MainViewModel::class.java)) {
+            val repository = NoteRepository(noteDao, subjectDao)
             @Suppress("UNCHECKED_CAST")
-            return SummarizerViewModel(dao) as T
+            return MainViewModel(repository) as T
         }
         throw IllegalArgumentException("Unknown ViewModel class")
     }

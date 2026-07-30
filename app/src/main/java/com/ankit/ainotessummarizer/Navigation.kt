@@ -5,16 +5,17 @@ import androidx.navigation.navArgument
 
 // Defines the navigation routes and arguments used in the app
 object AppDestinations {
-    const val SUMMARIZER_ROUTE = "summarizer"
-    const val HISTORY_ROUTE = "history"
-    const val RESULT_ROUTE = "result"
+    const val SUBJECTS_ROUTE = "subjects"
+    const val NOTES_ROUTE = "notes/{subjectId}"
+    const val NOTE_DETAIL_ROUTE = "note_detail/{noteId}"
+    const val STUDY_MODE_ROUTE = "study/{noteId}"
+    const val CAMERA_ROUTE = "camera/{subjectId}"
 
-    // Route for the detail screen, with a placeholder for the summaryId
-    const val DETAIL_ROUTE = "detail/{summaryId}"
-    const val SUMMARY_ID_ARG = "summaryId"
+    const val SUBJECT_ID_ARG = "subjectId"
+    const val NOTE_ID_ARG = "noteId"
 
-    // Helper function to create the full route for navigating to a specific summary
-    fun navigateToDetail(summaryId: Int): String {
-        return "detail/$summaryId"
-    }
+    fun navigateToNotes(subjectId: Int) = "notes/$subjectId"
+    fun navigateToNoteDetail(noteId: Int) = "note_detail/$noteId"
+    fun navigateToStudy(noteId: Int) = "study/$noteId"
+    fun navigateToCamera(subjectId: Int) = "camera/$subjectId"
 }

@@ -97,7 +97,7 @@ dependencies {
     implementation("com.google.accompanist:accompanist-permissions:0.34.0")
 
     // Google AI (Gemini)
-    implementation("com.google.ai.client.generativeai:generativeai:0.7.0")
+    implementation("com.google.ai.client.generativeai:generativeai:0.9.0")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.8.0")
 
     // Room Database
