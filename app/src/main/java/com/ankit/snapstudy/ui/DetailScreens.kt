@@ -1,4 +1,4 @@
-package com.ankit.ainotessummarizer.ui
+package com.ankit.snapstudy.ui
 
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -14,10 +14,10 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
-import com.ankit.ainotessummarizer.AppDestinations
-import com.ankit.ainotessummarizer.MainViewModel
-import com.ankit.ainotessummarizer.data.Flashcard
-import com.ankit.ainotessummarizer.data.Note
+import com.ankit.snapstudy.AppDestinations
+import com.ankit.snapstudy.MainViewModel
+import com.ankit.snapstudy.data.Flashcard
+import com.ankit.snapstudy.data.Note
 import org.json.JSONArray
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
@@ -182,3 +182,4 @@ fun StudyModeScreen(noteId: Int, viewModel: MainViewModel, navController: NavCon
         }
     }
 }
+

@@ -1,4 +1,4 @@
-package com.ankit.ainotessummarizer.ui.theme
+package com.ankit.snapstudy.ui.theme
 
 import androidx.compose.material3.Typography
 import androidx.compose.ui.text.TextStyle
@@ -30,3 +30,4 @@ val typography = Typography(
         letterSpacing = 0.5.sp
     )
 )
+

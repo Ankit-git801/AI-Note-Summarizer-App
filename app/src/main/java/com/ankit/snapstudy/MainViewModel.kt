@@ -1,11 +1,11 @@
-package com.ankit.ainotessummarizer
+package com.ankit.snapstudy
 
 import android.graphics.Bitmap
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.ankit.ainotessummarizer.data.Note
-import com.ankit.ainotessummarizer.data.NoteRepository
-import com.ankit.ainotessummarizer.data.Subject
+import com.ankit.snapstudy.data.Note
+import com.ankit.snapstudy.data.NoteRepository
+import com.ankit.snapstudy.data.Subject
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 
@@ -29,6 +29,26 @@ class MainViewModel(private val repository: NoteRepository) : ViewModel() {
     fun deleteSubject(subject: Subject) {
         viewModelScope.launch {
             repository.deleteSubject(subject)
+        }
+    }
+
+    fun updateSubject(subject: Subject) {
+        viewModelScope.launch {
+            repository.updateSubject(subject)
+        }
+    }
+
+    fun combineNotes(notes: List<Note>, title: String, subjectId: Int) {
+        if (notes.isEmpty()) return
+        _uiState.value = UiState.Loading
+        viewModelScope.launch {
+            repository.combineNotesIntoChapter(notes, title, subjectId)
+                .onSuccess {
+                    _uiState.value = UiState.Success(it)
+                }
+                .onFailure {
+                    _uiState.value = UiState.Error(it.message ?: "Unknown error")
+                }
         }
     }
 
@@ -56,6 +76,12 @@ class MainViewModel(private val repository: NoteRepository) : ViewModel() {
         }
     }
 
+    fun updateNote(note: Note) {
+        viewModelScope.launch {
+            repository.updateNote(note)
+        }
+    }
+
     fun deleteNote(note: Note) {
         viewModelScope.launch {
             repository.deleteNote(note)
@@ -69,3 +95,4 @@ sealed interface UiState {
     data class Success(val note: Note) : UiState
     data class Error(val message: String) : UiState
 }
+

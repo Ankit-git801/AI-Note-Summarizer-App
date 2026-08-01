@@ -1,4 +1,4 @@
-package com.ankit.ainotessummarizer
+package com.ankit.snapstudy
 
 import androidx.navigation.NavType
 import androidx.navigation.navArgument
@@ -19,3 +19,4 @@ object AppDestinations {
     fun navigateToStudy(noteId: Int) = "study/$noteId"
     fun navigateToCamera(subjectId: Int) = "camera/$subjectId"
 }
+

@@ -1,4 +1,4 @@
-package com.ankit.ainotessummarizer.ui
+package com.ankit.snapstudy.ui
 
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
@@ -32,9 +32,9 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.content.ContextCompat
 import androidx.navigation.NavController
-import com.ankit.ainotessummarizer.AppDestinations
-import com.ankit.ainotessummarizer.MainViewModel
-import com.ankit.ainotessummarizer.UiState
+import com.ankit.snapstudy.AppDestinations
+import com.ankit.snapstudy.MainViewModel
+import com.ankit.snapstudy.UiState
 import java.util.concurrent.Executors
 
 @Composable
@@ -179,3 +179,4 @@ private fun ImageProxy.toBitmap(): Bitmap {
     buffer.get(bytes)
     return BitmapFactory.decodeByteArray(bytes, 0, bytes.size)
 }
+

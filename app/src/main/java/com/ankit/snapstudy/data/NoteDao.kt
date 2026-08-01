@@ -1,4 +1,4 @@
-package com.ankit.ainotessummarizer.data
+package com.ankit.snapstudy.data
 
 import androidx.room.Dao
 import androidx.room.Delete
@@ -24,3 +24,4 @@ interface NoteDao {
     @Delete
     suspend fun delete(note: Note)
 }
+

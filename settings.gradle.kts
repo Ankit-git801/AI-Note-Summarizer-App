@@ -19,6 +19,6 @@ dependencyResolutionManagement {
     }
 }
 
-rootProject.name = "AI Notes Summarizer"
+rootProject.name = "SnapStudy"
 include(":app")
  

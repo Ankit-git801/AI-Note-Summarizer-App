@@ -1,11 +1,11 @@
-package com.ankit.ainotessummarizer.data
+package com.ankit.snapstudy.data
 
 import android.content.Context
 import androidx.room.Database
 import androidx.room.Room
 import androidx.room.RoomDatabase
 
-@Database(entities = [Subject::class, Note::class], version = 4, exportSchema = false)
+@Database(entities = [Subject::class, Note::class], version = 5, exportSchema = false)
 abstract class AppDatabase : RoomDatabase() {
     abstract fun subjectDao(): SubjectDao
     abstract fun noteDao(): NoteDao
@@ -29,3 +29,4 @@ abstract class AppDatabase : RoomDatabase() {
         }
     }
 }
+

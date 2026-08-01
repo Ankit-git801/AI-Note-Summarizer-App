@@ -18,11 +18,11 @@ fun getLocalProperty(key: String, project: org.gradle.api.Project): String {
 }
 
 android {
-    namespace = "com.ankit.ainotessummarizer"
+    namespace = "com.ankit.snapstudy"
     compileSdk = 34
 
     defaultConfig {
-        applicationId = "com.ankit.ainotessummarizer"
+        applicationId = "com.ankit.snapstudy"
         minSdk = 26
         targetSdk = 34
         versionCode = 1

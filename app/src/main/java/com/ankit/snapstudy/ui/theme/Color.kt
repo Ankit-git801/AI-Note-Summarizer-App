@@ -1,4 +1,4 @@
-package com.ankit.ainotessummarizer.ui.theme
+package com.ankit.snapstudy.ui.theme
 
 // THIS IS THE MISSING IMPORT
 import androidx.compose.ui.graphics.Color
@@ -17,3 +17,4 @@ val AiError = Color(0xFFEF4444)
 // Gradient Helpers
 val PrimaryGradient = listOf(AiPrimary, AiSecondary)
 val AccentGradient = listOf(AiSecondary, AiTertiary)
+

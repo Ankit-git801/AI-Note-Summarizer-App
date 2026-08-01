@@ -1,4 +1,4 @@
-package com.ankit.ainotessummarizer.ui
+package com.ankit.snapstudy.ui
 
 import android.graphics.Bitmap
 import android.graphics.ImageDecoder
@@ -8,6 +8,7 @@ import android.provider.MediaStore
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
@@ -30,11 +31,11 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
-import com.ankit.ainotessummarizer.AppDestinations
-import com.ankit.ainotessummarizer.MainViewModel
-import com.ankit.ainotessummarizer.UiState
-import com.ankit.ainotessummarizer.data.Note
-import com.ankit.ainotessummarizer.data.Subject
+import com.ankit.snapstudy.AppDestinations
+import com.ankit.snapstudy.MainViewModel
+import com.ankit.snapstudy.UiState
+import com.ankit.snapstudy.data.Note
+import com.ankit.snapstudy.data.Subject
 import java.text.SimpleDateFormat
 import java.util.*
 
@@ -44,6 +45,7 @@ fun SubjectsScreen(viewModel: MainViewModel, navController: NavController) {
     val subjects by viewModel.allSubjects.collectAsState()
     var showAddDialog by remember { mutableStateOf(false) }
     var subjectToDelete by remember { mutableStateOf<Subject?>(null) }
+    var subjectToEdit by remember { mutableStateOf<Subject?>(null) }
 
     Scaffold(
         topBar = { TopAppBar(title = { Text("Smart Notebook", fontWeight = FontWeight.Bold) }) },
@@ -73,6 +75,9 @@ fun SubjectsScreen(viewModel: MainViewModel, navController: NavController) {
                         },
                         onDelete = {
                             subjectToDelete = subject
+                        },
+                        onEdit = {
+                            subjectToEdit = subject
                         }
                     )
                 }
@@ -107,6 +112,33 @@ fun SubjectsScreen(viewModel: MainViewModel, navController: NavController) {
         )
     }
 
+    subjectToEdit?.let { subject ->
+        var newName by remember { mutableStateOf(subject.name) }
+        AlertDialog(
+            onDismissRequest = { subjectToEdit = null },
+            title = { Text("Edit Subject") },
+            text = {
+                OutlinedTextField(
+                    value = newName,
+                    onValueChange = { newName = it },
+                    label = { Text("Subject Name") },
+                    modifier = Modifier.fillMaxWidth()
+                )
+            },
+            confirmButton = {
+                TextButton(onClick = {
+                    if (newName.isNotBlank()) {
+                        viewModel.updateSubject(subject.copy(name = newName))
+                        subjectToEdit = null
+                    }
+                }) { Text("Save") }
+            },
+            dismissButton = {
+                TextButton(onClick = { subjectToEdit = null }) { Text("Cancel") }
+            }
+        )
+    }
+
     subjectToDelete?.let { subject ->
         AlertDialog(
             onDismissRequest = { subjectToDelete = null },
@@ -129,11 +161,13 @@ fun SubjectsScreen(viewModel: MainViewModel, navController: NavController) {
 
 @OptIn(androidx.compose.foundation.ExperimentalFoundationApi::class)
 @Composable
-fun SubjectCard(subject: Subject, onClick: () -> Unit, onDelete: () -> Unit) {
+fun SubjectCard(subject: Subject, onClick: () -> Unit, onDelete: () -> Unit, onEdit: () -> Unit) {
+    var showMenu by remember { mutableStateOf(false) }
+
     Card(
         modifier = Modifier.fillMaxWidth().height(120.dp).combinedClickable(
             onClick = onClick,
-            onLongClick = onDelete
+            onLongClick = { showMenu = true }
         ),
         shape = RoundedCornerShape(16.dp),
         colors = CardDefaults.cardColors(containerColor = Color(subject.color).copy(alpha = 0.1f))
@@ -146,11 +180,35 @@ fun SubjectCard(subject: Subject, onClick: () -> Unit, onDelete: () -> Unit) {
                 fontWeight = FontWeight.Bold,
                 modifier = Modifier.align(Alignment.BottomStart)
             )
-            IconButton(
-                onClick = onDelete,
-                modifier = Modifier.align(Alignment.TopEnd).size(24.dp)
-            ) {
-                Icon(Icons.Default.Delete, "Delete", tint = MaterialTheme.colorScheme.error.copy(alpha = 0.6f), modifier = Modifier.size(20.dp))
+            
+            Box(modifier = Modifier.align(Alignment.TopEnd)) {
+                IconButton(
+                    onClick = { showMenu = true },
+                    modifier = Modifier.size(24.dp)
+                ) {
+                    Icon(Icons.Default.MoreVert, "More", modifier = Modifier.size(20.dp))
+                }
+                DropdownMenu(
+                    expanded = showMenu,
+                    onDismissRequest = { showMenu = false }
+                ) {
+                    DropdownMenuItem(
+                        text = { Text("Edit") },
+                        onClick = {
+                            showMenu = false
+                            onEdit()
+                        },
+                        leadingIcon = { Icon(Icons.Default.Edit, null, modifier = Modifier.size(18.dp)) }
+                    )
+                    DropdownMenuItem(
+                        text = { Text("Delete") },
+                        onClick = {
+                            showMenu = false
+                            onDelete()
+                        },
+                        leadingIcon = { Icon(Icons.Default.Delete, null, modifier = Modifier.size(18.dp)) }
+                    )
+                }
             }
         }
     }
@@ -161,8 +219,12 @@ fun SubjectCard(subject: Subject, onClick: () -> Unit, onDelete: () -> Unit) {
 fun NotesScreen(subjectId: Int, viewModel: MainViewModel, navController: NavController) {
     val notes by viewModel.getNotesForSubject(subjectId).collectAsState(emptyList())
     var noteToDelete by remember { mutableStateOf<Note?>(null) }
+    var noteToEdit by remember { mutableStateOf<Note?>(null) }
     val context = LocalContext.current
     val uiState by viewModel.uiState.collectAsState()
+    
+    val selectedNotes = remember { mutableStateListOf<Note>() }
+    var showCombineDialog by remember { mutableStateOf(false) }
 
     val galleryLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.PickMultipleVisualMedia(),
@@ -188,6 +250,7 @@ fun NotesScreen(subjectId: Int, viewModel: MainViewModel, navController: NavCont
         if (uiState is UiState.Success) {
             val note = (uiState as UiState.Success).note
             viewModel.resetUiState()
+            selectedNotes.clear()
             navController.navigate(AppDestinations.navigateToNoteDetail(note.id))
         }
     }
@@ -195,25 +258,39 @@ fun NotesScreen(subjectId: Int, viewModel: MainViewModel, navController: NavCont
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Notes") },
+                title = { 
+                    Text(if (selectedNotes.isEmpty()) "Notes" else "${selectedNotes.size} Selected") 
+                },
                 navigationIcon = {
-                    IconButton(onClick = { navController.popBackStack() }) {
-                        Icon(Icons.Default.ArrowBack, "Back")
+                    IconButton(onClick = { 
+                        if (selectedNotes.isEmpty()) navController.popBackStack() 
+                        else selectedNotes.clear()
+                    }) {
+                        Icon(if (selectedNotes.isEmpty()) Icons.Default.ArrowBack else Icons.Default.Close, "Back")
+                    }
+                },
+                actions = {
+                    if (selectedNotes.size > 1) {
+                        IconButton(onClick = { showCombineDialog = true }) {
+                            Icon(Icons.Default.AutoAwesomeMotion, "Combine into Chapter")
+                        }
                     }
                 }
             )
         },
         floatingActionButton = {
-            Column(horizontalAlignment = Alignment.End) {
-                FloatingActionButton(
-                    onClick = { galleryLauncher.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)) },
-                    containerColor = MaterialTheme.colorScheme.secondaryContainer,
-                    modifier = Modifier.padding(bottom = 16.dp)
-                ) {
-                    Icon(Icons.Default.PhotoLibrary, "Gallery")
-                }
-                FloatingActionButton(onClick = { navController.navigate(AppDestinations.navigateToCamera(subjectId)) }) {
-                    Icon(Icons.Default.CameraAlt, "Scan Note")
+            if (selectedNotes.isEmpty()) {
+                Column(horizontalAlignment = Alignment.End) {
+                    FloatingActionButton(
+                        onClick = { galleryLauncher.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)) },
+                        containerColor = MaterialTheme.colorScheme.secondaryContainer,
+                        modifier = Modifier.padding(bottom = 16.dp)
+                    ) {
+                        Icon(Icons.Default.PhotoLibrary, "Gallery")
+                    }
+                    FloatingActionButton(onClick = { navController.navigate(AppDestinations.navigateToCamera(subjectId)) }) {
+                        Icon(Icons.Default.CameraAlt, "Scan Note")
+                    }
                 }
             }
         }
@@ -230,13 +307,25 @@ fun NotesScreen(subjectId: Int, viewModel: MainViewModel, navController: NavCont
                     verticalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
                     items(notes) { note ->
+                        val isSelected = selectedNotes.contains(note)
                         NoteItem(
                             note = note,
+                            isSelected = isSelected,
+                            onSelect = {
+                                if (isSelected) selectedNotes.remove(note) else selectedNotes.add(note)
+                            },
                             onClick = {
-                                navController.navigate(AppDestinations.navigateToNoteDetail(note.id))
+                                if (selectedNotes.isEmpty()) {
+                                    navController.navigate(AppDestinations.navigateToNoteDetail(note.id))
+                                } else {
+                                    if (isSelected) selectedNotes.remove(note) else selectedNotes.add(note)
+                                }
                             },
                             onDelete = {
                                 noteToDelete = note
+                            },
+                            onEdit = {
+                                noteToEdit = note
                             }
                         )
                     }
@@ -260,6 +349,66 @@ fun NotesScreen(subjectId: Int, viewModel: MainViewModel, navController: NavCont
         }
     }
 
+    if (showCombineDialog) {
+        var chapterTitle by remember { mutableStateOf("") }
+        AlertDialog(
+            onDismissRequest = { showCombineDialog = false },
+            title = { Text("Combine into Chapter") },
+            text = {
+                Column {
+                    Text("This will merge selected notes into a single cohesive chapter with a fresh AI summary.")
+                    Spacer(Modifier.height(8.dp))
+                    Text("⚠️ Warning: Original individual notes will be deleted.", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.error)
+                    Spacer(Modifier.height(16.dp))
+                    OutlinedTextField(
+                        value = chapterTitle,
+                        onValueChange = { chapterTitle = it },
+                        label = { Text("Chapter Title (e.g. Chapter 1)") },
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = {
+                    if (chapterTitle.isNotBlank()) {
+                        viewModel.combineNotes(selectedNotes.toList(), chapterTitle, subjectId)
+                        showCombineDialog = false
+                    }
+                }) { Text("Combine") }
+            },
+            dismissButton = {
+                TextButton(onClick = { showCombineDialog = false }) { Text("Cancel") }
+            }
+        )
+    }
+
+    noteToEdit?.let { note ->
+        var newName by remember { mutableStateOf(note.title) }
+        AlertDialog(
+            onDismissRequest = { noteToEdit = null },
+            title = { Text("Edit Note Name") },
+            text = {
+                OutlinedTextField(
+                    value = newName,
+                    onValueChange = { newName = it },
+                    label = { Text("Note Name") },
+                    modifier = Modifier.fillMaxWidth()
+                )
+            },
+            confirmButton = {
+                TextButton(onClick = {
+                    if (newName.isNotBlank()) {
+                        viewModel.updateNote(note.copy(title = newName))
+                        noteToEdit = null
+                    }
+                }) { Text("Save") }
+            },
+            dismissButton = {
+                TextButton(onClick = { noteToEdit = null }) { Text("Cancel") }
+            }
+        )
+    }
+
     noteToDelete?.let { note ->
         AlertDialog(
             onDismissRequest = { noteToDelete = null },
@@ -280,24 +429,61 @@ fun NotesScreen(subjectId: Int, viewModel: MainViewModel, navController: NavCont
     }
 }
 
+@OptIn(androidx.compose.foundation.ExperimentalFoundationApi::class)
 @Composable
-fun NoteItem(note: Note, onClick: () -> Unit, onDelete: () -> Unit) {
+fun NoteItem(
+    note: Note, 
+    isSelected: Boolean = false,
+    onSelect: () -> Unit,
+    onClick: () -> Unit, 
+    onDelete: () -> Unit,
+    onEdit: () -> Unit
+) {
     Card(
-        modifier = Modifier.fillMaxWidth().clickable(onClick = onClick),
-        shape = RoundedCornerShape(12.dp)
+        modifier = Modifier
+            .fillMaxWidth()
+            .combinedClickable(
+                onClick = onClick,
+                onLongClick = onSelect
+            ),
+        shape = RoundedCornerShape(12.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = if (isSelected) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceVariant
+        ),
+        border = if (isSelected) androidx.compose.foundation.BorderStroke(2.dp, MaterialTheme.colorScheme.primary) else null
     ) {
         Column(Modifier.padding(16.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
+                if (isSelected) {
+                    Icon(Icons.Default.CheckCircle, null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(20.dp).padding(end = 8.dp))
+                }
                 Text(
-                    SimpleDateFormat("MMM dd, yyyy", Locale.getDefault()).format(Date(note.timestamp)),
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                    note.title.ifBlank { SimpleDateFormat("MMM dd, yyyy", Locale.getDefault()).format(Date(note.timestamp)) },
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold,
+                    color = if (isSelected) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurface,
+                    modifier = Modifier.weight(1f)
                 )
-                Spacer(Modifier.weight(1f))
                 if (note.isPinned) Icon(Icons.Default.PushPin, null, modifier = Modifier.size(16.dp), tint = MaterialTheme.colorScheme.primary)
                 Spacer(Modifier.width(8.dp))
-                IconButton(onClick = onDelete, modifier = Modifier.size(24.dp)) {
-                    Icon(Icons.Default.Delete, "Delete", tint = MaterialTheme.colorScheme.error.copy(alpha = 0.6f), modifier = Modifier.size(20.dp))
+                
+                var showNoteMenu by remember { mutableStateOf(false) }
+                Box {
+                    IconButton(onClick = { showNoteMenu = true }, modifier = Modifier.size(24.dp)) {
+                        Icon(Icons.Default.MoreVert, "More", modifier = Modifier.size(20.dp))
+                    }
+                    DropdownMenu(expanded = showNoteMenu, onDismissRequest = { showNoteMenu = false }) {
+                        DropdownMenuItem(
+                            text = { Text("Edit Name") },
+                            onClick = { showNoteMenu = false; onEdit() },
+                            leadingIcon = { Icon(Icons.Default.Edit, null, modifier = Modifier.size(18.dp)) }
+                        )
+                        DropdownMenuItem(
+                            text = { Text("Delete") },
+                            onClick = { showNoteMenu = false; onDelete() },
+                            leadingIcon = { Icon(Icons.Default.Delete, null, modifier = Modifier.size(18.dp)) }
+                        )
+                    }
                 }
             }
             Spacer(Modifier.height(8.dp))
@@ -310,3 +496,4 @@ fun NoteItem(note: Note, onClick: () -> Unit, onDelete: () -> Unit) {
         }
     }
 }
+

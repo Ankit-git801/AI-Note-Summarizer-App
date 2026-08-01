@@ -1,14 +1,16 @@
-package com.ankit.ainotessummarizer.data
+package com.ankit.snapstudy.data
 
 import android.graphics.Bitmap
 import android.util.Log
-import com.ankit.ainotessummarizer.BuildConfig
+import com.ankit.snapstudy.BuildConfig
 import com.google.ai.client.generativeai.GenerativeModel
 import com.google.ai.client.generativeai.type.content
 import com.google.ai.client.generativeai.type.generationConfig
 import kotlinx.coroutines.flow.Flow
 import org.json.JSONArray
 import org.json.JSONObject
+import java.text.SimpleDateFormat
+import java.util.*
 
 class NoteRepository(
     private val noteDao: NoteDao,
@@ -35,6 +37,9 @@ class NoteRepository(
 
     suspend fun processNotesFromImages(bitmaps: List<Bitmap>, subjectId: Int): Result<Note> {
         val resizedBitmaps = bitmaps.map { resizeAndCompressBitmap(it) }
+        val date = SimpleDateFormat("MMM dd, yyyy", Locale.getDefault()).format(Date())
+        val defaultTitle = "Scan - $date"
+
         val prompt = """
             Analyze these handwritten or printed lecture notes provided across ${bitmaps.size} images. 
             Perform the following tasks:
@@ -67,6 +72,7 @@ class NoteRepository(
 
             val note = Note(
                 subjectId = subjectId,
+                title = defaultTitle,
                 originalText = jsonObject.getString("transcription"),
                 summarizedText = jsonObject.getString("summary"),
                 keyConcepts = jsonObject.getJSONArray("key_concepts").toString(),
@@ -77,6 +83,57 @@ class NoteRepository(
             Result.success(note.copy(id = id.toInt()))
         } catch (e: Exception) {
             Log.e("NoteRepository", "AI Error", e)
+            Result.failure(e)
+        }
+    }
+
+    suspend fun combineNotesIntoChapter(notes: List<Note>, chapterTitle: String, subjectId: Int): Result<Note> {
+        val sortedNotes = notes.sortedBy { it.timestamp }
+        val combinedOriginalText = sortedNotes.joinToString("\n\n---\n\n") { it.originalText }
+        
+        val prompt = """
+            You are an expert academic assistant. I am providing you with multiple sets of lecture notes that form a single chapter.
+            Please perform the following:
+            1. Combine all the notes into one cohesive, high-level summary using clear bullet points.
+            2. Extract the most important 'Key Concepts' across all the notes.
+            3. Generate a comprehensive set of 5-10 study 'Flashcards' that cover the entire chapter.
+
+            Return the result in the following JSON format:
+            {
+              "summary": "...",
+              "key_concepts": ["concept1", "concept2", ...],
+              "flashcards": [
+                {"question": "...", "answer": "..."},
+                ...
+              ]
+            }
+
+            Combined Notes Content:
+            $combinedOriginalText
+        """.trimIndent()
+
+        return try {
+            val response = generativeModel.generateContent(prompt)
+            val jsonResponse = response.text ?: throw Exception("Empty AI response")
+            val jsonObject = JSONObject(jsonResponse)
+
+            val chapterNote = Note(
+                subjectId = subjectId,
+                title = chapterTitle,
+                originalText = combinedOriginalText,
+                summarizedText = jsonObject.getString("summary"),
+                keyConcepts = jsonObject.getJSONArray("key_concepts").toString(),
+                flashcards = jsonObject.getJSONArray("flashcards").toString()
+            )
+
+            val id = noteDao.insert(chapterNote)
+            
+            // Delete original notes as requested
+            notes.forEach { noteDao.delete(it) }
+            
+            Result.success(chapterNote.copy(id = id.toInt()))
+        } catch (e: Exception) {
+            Log.e("NoteRepository", "Combine Error", e)
             Result.failure(e)
         }
     }
@@ -102,4 +159,6 @@ class NoteRepository(
     suspend fun updateNote(note: Note) = noteDao.update(note)
     suspend fun deleteNote(note: Note) = noteDao.delete(note)
     suspend fun deleteSubject(subject: Subject) = subjectDao.delete(subject)
+    suspend fun updateSubject(subject: Subject) = subjectDao.update(subject)
 }
+

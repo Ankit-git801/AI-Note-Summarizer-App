@@ -1,4 +1,4 @@
-package com.ankit.ainotessummarizer
+package com.ankit.snapstudy
 
 import android.Manifest
 import android.os.Bundle
@@ -18,9 +18,9 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
-import com.ankit.ainotessummarizer.data.AppDatabase
-import com.ankit.ainotessummarizer.ui.*
-import com.ankit.ainotessummarizer.ui.theme.AINotesSummarizerTheme
+import com.ankit.snapstudy.data.AppDatabase
+import com.ankit.snapstudy.ui.*
+import com.ankit.snapstudy.ui.theme.SnapStudyTheme
 import com.google.accompanist.permissions.ExperimentalPermissionsApi
 import com.google.accompanist.permissions.isGranted
 import com.google.accompanist.permissions.rememberPermissionState
@@ -35,7 +35,7 @@ class MainActivity : ComponentActivity() {
         WindowCompat.setDecorFitsSystemWindows(window, false)
         
         setContent {
-            AINotesSummarizerTheme {
+            SnapStudyTheme {
                 Surface(
                     modifier = Modifier.fillMaxSize(),
                     color = MaterialTheme.colorScheme.background
@@ -115,3 +115,4 @@ fun CameraPermissionWrapper(content: @Composable () -> Unit) {
         }
     }
 }
+

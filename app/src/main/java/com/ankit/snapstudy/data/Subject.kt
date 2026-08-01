@@ -1,4 +1,4 @@
-package com.ankit.ainotessummarizer.data
+package com.ankit.snapstudy.data
 
 import androidx.room.Entity
 import androidx.room.PrimaryKey
@@ -11,3 +11,4 @@ data class Subject(
     val color: Int, // Hex color for the UI
     val iconName: String = "Folder"
 )
+

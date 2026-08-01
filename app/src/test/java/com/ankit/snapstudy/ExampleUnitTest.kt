@@ -1,4 +1,4 @@
-package com.ankit.ainotessummarizer
+package com.ankit.snapstudy
 
 import org.junit.Test
 

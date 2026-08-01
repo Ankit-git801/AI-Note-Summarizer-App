@@ -1,4 +1,4 @@
-package com.ankit.ainotessummarizer.data
+package com.ankit.snapstudy.data
 
 import androidx.room.Entity
 import androidx.room.ForeignKey
@@ -21,6 +21,7 @@ data class Note(
     @PrimaryKey(autoGenerate = true)
     val id: Int = 0,
     val subjectId: Int,
+    val title: String = "",
     val originalText: String,
     val summarizedText: String,
     val keyConcepts: String = "", // Comma-separated or JSON list
@@ -34,3 +35,4 @@ data class Flashcard(
     val question: String,
     val answer: String
 )
+

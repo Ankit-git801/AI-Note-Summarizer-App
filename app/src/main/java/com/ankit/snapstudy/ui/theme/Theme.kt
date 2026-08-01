@@ -1,4 +1,4 @@
-package com.ankit.ainotessummarizer.ui.theme
+package com.ankit.snapstudy.ui.theme
 
 import android.app.Activity
 import android.os.Build
@@ -43,7 +43,7 @@ private val LightColorScheme = lightColorScheme(
 )
 
 @Composable
-fun AINotesSummarizerTheme(
+fun SnapStudyTheme(
     darkTheme: Boolean = isSystemInDarkTheme(),
     dynamicColor: Boolean = true, // Enable dynamic color by default
     content: @Composable () -> Unit,
@@ -73,3 +73,4 @@ fun AINotesSummarizerTheme(
         content = content
     )
 }
+

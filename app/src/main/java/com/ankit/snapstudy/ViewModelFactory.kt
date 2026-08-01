@@ -1,10 +1,10 @@
-package com.ankit.ainotessummarizer
+package com.ankit.snapstudy
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
-import com.ankit.ainotessummarizer.data.NoteDao
-import com.ankit.ainotessummarizer.data.NoteRepository
-import com.ankit.ainotessummarizer.data.SubjectDao
+import com.ankit.snapstudy.data.NoteDao
+import com.ankit.snapstudy.data.NoteRepository
+import com.ankit.snapstudy.data.SubjectDao
 
 class MainViewModelFactory(
     private val noteDao: NoteDao,
@@ -19,3 +19,4 @@ class MainViewModelFactory(
         throw IllegalArgumentException("Unknown ViewModel class")
     }
 }
+

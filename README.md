@@ -1,4 +1,4 @@
-# 📸🧠✍️ AI Smart Notebook
+# 📸🧠✍️ SnapStudy
 
 ![License](https://img.shields.io/badge/License-MIT-blue.svg) ![Kotlin](https://img.shields.io/badge/Kotlin-100%25-blueviolet.svg) ![Jetpack Compose](https://img.shields.io/badge/Jetpack%20Compose-UI-brightgreen.svg) ![Gemini AI](https://img.shields.io/badge/AI-Gemini%202.5%20Flash-orange.svg)
 
@@ -11,7 +11,8 @@ Transform your handwritten lecture notes or textbook pages into organized, struc
 -   📷 **Batch Note Capture**: Snap multiple photos of consecutive pages in one session. The app combines them into a single, cohesive digital note.
 -   🖼️ **Gallery Import**: Select multiple images from your phone's gallery to generate study materials from existing photos.
 -   🎓 **AI Study Guides**: Automatically extracts **Key Concepts** and generates **Interactive Flashcards** from every scan.
--   📂 **Subject Organization**: Keep your academic life organized with a hierarchical **Subject -> Notes** structure.
+-   📂 **Subject & Chapter Organization**: Keep your academic life organized with a hierarchical **Subject -> Chapters -> Notes** structure. Rename subjects and combine notes into cohesive chapters anytime.
+-   🧠 **AI Chapter Re-summarization**: When combining multiple notes, the AI writes a fresh, high-level summary that connects all pages logically.
 -   🚀 **Instant Study Mode**: Flip through AI-generated questions with **scrollable content** to test your knowledge right in the app.
 -   ⚡ **Speed Optimized**: Uses **Gemini 2.5 Flash** with client-side image compression and resizing for near-instant processing.
 -   🎨 **Modern MVVM Architecture**: Built with professional **Clean Architecture** patterns, ensuring a scalable and maintainable codebase.
@@ -42,8 +43,8 @@ This app is architected for **zero-cost operation** and high scalability:
 
 ### 1. Clone the Repository
 ```bash
-git clone https://github.com/Ankit-git801/AI-Note-Summarizer-App.git
-cd AI-Note-Summarizer-App
+git clone https://github.com/Ankit-git801/SnapStudy.git
+cd SnapStudy
 ```
 
 ### 2. Set Up the Gemini API Key
