@@ -4,15 +4,18 @@ import android.Manifest
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.activity.enableEdgeToEdge
 import androidx.activity.viewModels
-import androidx.compose.animation.ExperimentalAnimationApi
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.core.view.WindowCompat
+import androidx.compose.ui.res.stringResource
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
@@ -32,7 +35,7 @@ class MainActivity : ComponentActivity() {
         val viewModelFactory = MainViewModelFactory(database.noteDao(), database.subjectDao())
         val viewModel: MainViewModel by viewModels { viewModelFactory }
         
-        WindowCompat.setDecorFitsSystemWindows(window, false)
+        enableEdgeToEdge()
         
         setContent {
             SnapStudyTheme {
@@ -109,8 +112,8 @@ fun CameraPermissionWrapper(content: @Composable () -> Unit) {
     } else {
         // Simple permission denied UI
         Surface(Modifier.fillMaxSize()) {
-            androidx.compose.foundation.layout.Box(contentAlignment = androidx.compose.ui.Alignment.Center) {
-                androidx.compose.material3.Text("Camera permission is required to scan notes.")
+            androidx.compose.foundation.layout.Box(contentAlignment = Alignment.Center) {
+                Text(stringResource(R.string.camera_permission_required))
             }
         }
     }

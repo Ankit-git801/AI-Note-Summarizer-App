@@ -11,11 +11,13 @@ import androidx.compose.material.icons.filled.School
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
 import com.ankit.snapstudy.AppDestinations
 import com.ankit.snapstudy.MainViewModel
+import com.ankit.snapstudy.R
 import com.ankit.snapstudy.data.Flashcard
 import com.ankit.snapstudy.data.Note
 import org.json.JSONArray
@@ -28,15 +30,15 @@ fun NoteDetailScreen(noteId: Int, viewModel: MainViewModel, navController: NavCo
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Note Detail") },
+                title = { Text(stringResource(R.string.note_detail)) },
                 navigationIcon = {
                     IconButton(onClick = { navController.popBackStack() }) {
-                        Icon(Icons.Default.ArrowBack, "Back")
+                        Icon(Icons.Default.ArrowBack, stringResource(R.string.back))
                     }
                 },
                 actions = {
                     IconButton(onClick = { navController.navigate(AppDestinations.navigateToStudy(noteId)) }) {
-                        Icon(Icons.Default.School, "Study Mode")
+                        Icon(Icons.Default.School, stringResource(R.string.study_mode))
                     }
                 }
             )
@@ -50,12 +52,12 @@ fun NoteDetailScreen(noteId: Int, viewModel: MainViewModel, navController: NavCo
                     .padding(16.dp)
                     .verticalScroll(rememberScrollState())
             ) {
-                Text("Summary", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+                Text(stringResource(R.string.summary_title), style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
                 Spacer(Modifier.height(8.dp))
                 Text(n.summarizedText, style = MaterialTheme.typography.bodyLarge)
 
                 Spacer(Modifier.height(24.dp))
-                Text("Key Concepts", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+                Text(stringResource(R.string.key_concepts_title), style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
                 Spacer(Modifier.height(8.dp))
                 
                 val concepts = remember(n.keyConcepts) {
@@ -70,7 +72,7 @@ fun NoteDetailScreen(noteId: Int, viewModel: MainViewModel, navController: NavCo
                 }
 
                 Spacer(Modifier.height(24.dp))
-                Text("Original Transcription", style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text(stringResource(R.string.original_transcription_title), style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 Spacer(Modifier.height(8.dp))
                 Text(n.originalText, style = MaterialTheme.typography.bodySmall)
             }
@@ -101,10 +103,10 @@ fun StudyModeScreen(noteId: Int, viewModel: MainViewModel, navController: NavCon
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Study Mode") },
+                title = { Text(stringResource(R.string.study_mode)) },
                 navigationIcon = {
                     IconButton(onClick = { navController.popBackStack() }) {
-                        Icon(Icons.Default.ArrowBack, "Back")
+                        Icon(Icons.Default.ArrowBack, stringResource(R.string.back))
                     }
                 }
             )
@@ -112,7 +114,7 @@ fun StudyModeScreen(noteId: Int, viewModel: MainViewModel, navController: NavCon
     ) { padding ->
         if (flashcards.isEmpty()) {
             Box(Modifier.fillMaxSize().padding(padding)) {
-                Text("No flashcards generated for this note.", modifier = Modifier.padding(16.dp))
+                Text(stringResource(R.string.no_flashcards), modifier = Modifier.padding(16.dp))
             }
         } else {
             Column(
@@ -120,7 +122,7 @@ fun StudyModeScreen(noteId: Int, viewModel: MainViewModel, navController: NavCon
                 verticalArrangement = Arrangement.Center
             ) {
                 Text(
-                    "Card ${currentIndex + 1} of ${flashcards.size}",
+                    stringResource(R.string.card_count, currentIndex + 1, flashcards.size),
                     style = MaterialTheme.typography.labelLarge,
                     modifier = Modifier.padding(bottom = 16.dp)
                 )
@@ -143,7 +145,7 @@ fun StudyModeScreen(noteId: Int, viewModel: MainViewModel, navController: NavCon
                             .verticalScroll(rememberScrollState()) // Make content scrollable
                     ) {
                         Text(
-                            text = if (showAnswer) "ANSWER" else "QUESTION",
+                            text = if (showAnswer) stringResource(R.string.answer_label) else stringResource(R.string.question_label),
                             style = MaterialTheme.typography.labelSmall,
                             color = if (showAnswer) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.secondary
                         )
@@ -166,7 +168,7 @@ fun StudyModeScreen(noteId: Int, viewModel: MainViewModel, navController: NavCon
                             }
                         },
                         enabled = currentIndex > 0
-                    ) { Text("Previous") }
+                    ) { Text(stringResource(R.string.previous)) }
                     
                     Button(
                         onClick = {
@@ -176,7 +178,7 @@ fun StudyModeScreen(noteId: Int, viewModel: MainViewModel, navController: NavCon
                             }
                         },
                         enabled = currentIndex < flashcards.size - 1
-                    ) { Text("Next") }
+                    ) { Text(stringResource(R.string.next)) }
                 }
             }
         }

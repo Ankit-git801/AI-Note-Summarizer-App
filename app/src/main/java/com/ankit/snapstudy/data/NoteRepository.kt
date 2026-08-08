@@ -36,6 +36,9 @@ class NoteRepository(
     }
 
     suspend fun processNotesFromImages(bitmaps: List<Bitmap>, subjectId: Int): Result<Note> {
+        if (BuildConfig.GEMINI_API_KEY == "NO_API_KEY_FOUND" || BuildConfig.GEMINI_API_KEY.isBlank()) {
+            return Result.failure(Exception("Gemini API Key not found. Please add it to local.properties."))
+        }
         val resizedBitmaps = bitmaps.map { resizeAndCompressBitmap(it) }
         val date = SimpleDateFormat("MMM dd, yyyy", Locale.getDefault()).format(Date())
         val defaultTitle = "Scan - $date"
@@ -88,6 +91,9 @@ class NoteRepository(
     }
 
     suspend fun combineNotesIntoChapter(notes: List<Note>, chapterTitle: String, subjectId: Int): Result<Note> {
+        if (BuildConfig.GEMINI_API_KEY == "NO_API_KEY_FOUND" || BuildConfig.GEMINI_API_KEY.isBlank()) {
+            return Result.failure(Exception("Gemini API Key not found. Please add it to local.properties."))
+        }
         val sortedNotes = notes.sortedBy { it.timestamp }
         val combinedOriginalText = sortedNotes.joinToString("\n\n---\n\n") { it.originalText }
         

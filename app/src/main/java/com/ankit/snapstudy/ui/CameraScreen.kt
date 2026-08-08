@@ -28,12 +28,14 @@ import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalLifecycleOwner
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.content.ContextCompat
 import androidx.navigation.NavController
 import com.ankit.snapstudy.AppDestinations
 import com.ankit.snapstudy.MainViewModel
+import com.ankit.snapstudy.R
 import com.ankit.snapstudy.UiState
 import java.util.concurrent.Executors
 
@@ -65,7 +67,7 @@ fun CameraScreen(subjectId: Int, viewModel: MainViewModel, navController: NavCon
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
                     CircularProgressIndicator()
                     Spacer(Modifier.height(8.dp))
-                    Text("AI is reading your notes...")
+                    Text(stringResource(R.string.ai_reading))
                 }
             }
         } else {
@@ -95,7 +97,7 @@ fun CameraScreen(subjectId: Int, viewModel: MainViewModel, navController: NavCon
             IconButton(
                 onClick = { navController.popBackStack() },
                 modifier = Modifier.align(Alignment.TopEnd).padding(16.dp)
-            ) { Icon(Icons.Default.Close, "Close", tint = Color.White) }
+            ) { Icon(Icons.Default.Close, stringResource(R.string.cancel), tint = Color.White) }
 
             // Thumbnail list
             if (capturedImages.isNotEmpty()) {
@@ -142,7 +144,7 @@ fun CameraScreen(subjectId: Int, viewModel: MainViewModel, navController: NavCon
                     containerColor = MaterialTheme.colorScheme.primary,
                     contentColor = MaterialTheme.colorScheme.onPrimary
                 ) {
-                    Icon(Icons.Default.Camera, "Capture")
+                    Icon(Icons.Default.Camera, stringResource(R.string.scan_note))
                 }
 
                 // Done button
@@ -154,7 +156,7 @@ fun CameraScreen(subjectId: Int, viewModel: MainViewModel, navController: NavCon
                         containerColor = Color(0xFF4CAF50), // Green
                         contentColor = Color.White
                     ) {
-                        Icon(Icons.Default.Check, "Done")
+                        Icon(Icons.Default.Check, stringResource(R.string.create))
                     }
                 }
             }
@@ -163,10 +165,10 @@ fun CameraScreen(subjectId: Int, viewModel: MainViewModel, navController: NavCon
         if (uiState is UiState.Error) {
             AlertDialog(
                 onDismissRequest = { viewModel.resetUiState() },
-                title = { Text("AI Error") },
+                title = { Text(stringResource(R.string.ai_error)) },
                 text = { Text((uiState as UiState.Error).message) },
                 confirmButton = {
-                    TextButton(onClick = { viewModel.resetUiState() }) { Text("OK") }
+                    TextButton(onClick = { viewModel.resetUiState() }) { Text(stringResource(R.string.ok)) }
                 }
             )
         }
